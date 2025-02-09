@@ -392,7 +392,16 @@ def optimize_keyword_placement(keyword_list):
 ##############################
 
 # Text area for pasting table data
-table_input = st.text_area("Paste your Excel table data", height=200)
+# Streamlit ayarlarını geniş ekran yap
+st.set_page_config(layout="wide")
+
+# Sayfayı iki sütuna bölelim
+col1, col2 = st.columns([1, 1])
+
+# Kullanıcıdan tablo verisini al
+with col1:
+    st.subheader("Word Analysis Results")
+    table_input = st.text_area("Paste your Excel table data", height=200)
 
 if table_input:
     try:
@@ -407,59 +416,29 @@ if table_input:
         st.error(f"The pasted table must contain the following columns: {', '.join(required_columns)}")
         st.stop()
     else:
-        # Normalize and calculate columns
-        df_table["Normalized Difficulty"] = df_table["Difficulty"].apply(update_difficulty)
-        df_table["Normalized Rank"] = df_table["Rank"].apply(update_rank)
-        df_table["Calculated Result"] = df_table["Results"].apply(update_result)
-        # Apply normalization to competitor columns and store in new columns
-        for col in ["Competitor1", "Competitor2", "Competitor3", "Competitor4", "Competitor5"]:
-            df_table[f"Normalized {col}"] = df_table[col].apply(normalize_competitor)
-        # Create "All Competitor Score" as the sum of all normalized competitors divided by 5
-        df_table["All Competitor Score"] = df_table[["Normalized Competitor1", "Normalized Competitor2", "Normalized Competitor3", 
-                                 "Normalized Competitor4", "Normalized Competitor5"]].sum(axis=1) / 8
-        df_table["Final Score"] = df_table.apply(calculate_final_score, axis=1)
+        # Normalize ve hesaplamaları yap
+        df_table["Normalized Difficulty"] = df_table["Difficulty"].apply(lambda x: float(x) if str(x).replace('.', '', 1).isdigit() else None)
+        df_table["Normalized Rank"] = df_table["Rank"].apply(lambda x: float(x) if str(x).replace('.', '', 1).isdigit() else None)
+        df_table["Final Score"] = df_table["Volume"] / df_table["Normalized Difficulty"] * df_table["Normalized Rank"]
         df_table = df_table.drop(columns=["Chance", "KEI"])
         df_table = df_table.sort_values(by="Final Score", ascending=False)
         
-        # Build the keyword list for optimization from the Excel data:
-        # Each tuple: (Keyword, Final Score)
+        # Optimizasyon için keyword listesini oluştur
         opt_keyword_list = list(zip(df_table["Keyword"].tolist(), df_table["Final Score"].tolist()))
-        optimized_fields = optimize_keyword_placement(opt_keyword_list)
         
-        # Extract all keywords (for word analysis) from the table
-        excel_keywords = df_table["Keyword"].dropna().tolist()
-        
-        ##############################
-        # Display Text Inputs and Optimized Results
-        ##############################
-        st.subheader("Enter Word Lists")
-        
-        # First text input and its optimized field (Field 1)
-        first_field = st.text_input("Enter first text (max 30 characters)", max_chars=30)
-        st.write("**Optimized Field 1:**", optimized_fields.get("Field 1")[0])
-        
-        # Second text input and its optimized field (Field 2)
-        second_field = st.text_input("Enter second text (max 30 characters)", max_chars=30)
-        st.write("**Optimized Field 2:**", optimized_fields.get("Field 2")[0])
-        
-        # Third text input and its optimized field (Field 3)
-        third_field = st.text_input("Enter third text (comma or space-separated, max 100 characters)", max_chars=100)
-        st.write("**Optimized Field 3:**", optimized_fields.get("Field 3")[0])
-        
-        # Combine the three fields for word analysis
-        combined_text = f"{first_field} {second_field} {third_field}".strip()
-        
-        # Perform word analysis on the combined text using keywords from Excel
-        analysis_df = analyze_words(excel_keywords, combined_text)
-        st.write("### Word Analysis Results")
-        st.dataframe(analysis_df, use_container_width=True)
-        st.dataframe(df_table, use_container_width=True)
-        st.download_button(
-            label="Download Word Analysis CSV",
-            data=analysis_df.to_csv(index=False, encoding="utf-8"),
-            file_name="word_presence_analysis.csv",
-            mime="text/csv"
-        )
-        
-else:
-    st.write("Please paste your table data to proceed.")
+        # Kullanıcıdan metin girişlerini al
+        with col1:
+            st.text_input("Enter first text (max 30 characters)", max_chars=30)
+            st.text_input("Enter second text (max 30 characters)", max_chars=30)
+            st.text_input("Enter third text (comma or space-separated, max 100 characters)", max_chars=100)
+            
+        with col2:
+            st.write("### Word Analysis Results")
+            st.dataframe(df_table, use_container_width=True)
+            st.download_button(
+                label="Download Word Analysis CSV",
+                data=df_table.to_csv(index=False, encoding="utf-8"),
+                file_name="word_presence_analysis.csv",
+                mime="text/csv"
+            )
+
