@@ -226,14 +226,13 @@ def expand_keywords(keyword_list, max_length=29):
 
     return list(expanded_keywords)
 
-def construct_best_phrase(field_limit, keywords, multiplier, used_words, used_keywords):
+ef construct_best_phrase(field_limit, keywords, multiplier, used_words, used_keywords):
     """Constructs the highest scoring phrase dynamically by combining keywords."""
     field = []
     total_points = 0
     remaining_chars = field_limit
     
     sorted_keywords = sort_keywords_by_total_points(keywords)
-    
     while remaining_chars > 0 and sorted_keywords:
         best_keyword = sorted_keywords.pop(0)
         kw, base_points, f1_points, f2_points, f3_points = best_keyword
